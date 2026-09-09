@@ -1,0 +1,24 @@
+services:
+  projeto-korp:
+    container_name: projeto-korp
+    restart: unless-stopped
+    image: http-server-projeto-korp:latest
+    networks:
+      - rede-projeto-korp
+
+  proxy-nginx:
+    container_name: proxy-nginx
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "8080:80" #mapeia do host
+    volumes:
+      - ./http-server-projeto-korp.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - projeto-korp
+    networks:
+      - rede-projeto-korp
+
+networks:
+  rede-projeto-korp:
+    driver: bridge
