@@ -1,11 +1,11 @@
 FROM golang:1.27.0
 
-COPY httpserver.go .
-COPY go.mod .
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
 
 RUN go build -o httpserver httpserver.go
-
-COPY httpserver .
 
 EXPOSE 8080
 
