@@ -1,0 +1,128 @@
+---
+- name: Configuração do ambiente
+  hosts: local
+  become: true
+
+  vars:
+    project_dir: "{{ playbook_dir }}/.."
+
+  tasks:
+    - name: Garantir dependências do Ansible
+      ansible.builtin.raw: >
+        dnf install -y 
+        python3 
+        python3-dnf 
+        python3-docker 
+        python3-requests 
+        python3-urllib3 
+        python3-firewall
+      changed_when: false
+
+    - name: Instalar Dependências
+      ansible.builtin.dnf:
+        name:
+          - curl
+          - ca-certificates
+          - docker
+          - docker-compose
+          - python
+        state: present
+
+    #- name: Garantir que o serviço do Docker está ativo e habilitado no boot
+    #  ansible.builtin.service:
+    #    name: docker
+    #    state: started
+    #    enabled: yes
+
+    - name: Verificar se o firewalld está ativo
+      ansible.builtin.command: systemctl is-active firewalld
+      register: firewalld_status
+      changed_when: false
+      failed_when: false
+
+    - name: Liberar HTTP e Grafana no firewalld
+      ansible.posix.firewalld:
+        port: "{{ item }}"
+        permanent: true
+        state: enabled
+        immediate: true
+      loop:
+        - 80/tcp
+        - 3000/tcp
+      when: firewalld_status.rc == 0
+
+    - name: Criar a rede Docker personalizada se não existir
+      community.docker.docker_network:
+        name: rede-projeto-korp
+        state: present
+      ignore_errors: true
+
+    - name: Criar diretórios de provisionamento do Grafana no host
+      ansible.builtin.file:
+        path: "{{ project_dir }}/ansible/files/grafana/{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - datasources
+        - dashboards
+
+    #Configuração do NGINX
+    - name: Verificar presença do arquivo de configuração do NGINX
+      ansible.builtin.stat:
+        path: "{{ project_dir }}/nginx/http-server-projeto-korp.conf"
+      register: nginx_conf
+
+    - name: Falhar se o arquivo de proxy reverso do NGINX não existir
+      ansible.builtin.fail:
+        msg: "O arquivo http-server-projeto-korp.conf não foi encontrado na raiz do projeto!"
+      when: not nginx_conf.stat.exists
+
+    #Configuração do Prometheus e Grafana
+    - name: Configurar componentes de monitoramento (Prometheus e Grafana)
+      ansible.builtin.file:
+        path: "{{ project_dir }}/ansible/files/grafana/{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - datasources
+        - dashboards
+
+    - name: Validar existência do arquivo de configuração do Prometheus
+      ansible.builtin.stat:
+        path: "{{ project_dir }}/ansible/files/prometheus/prometheus.yml"
+      register: prometheus_conf
+
+    - name: Falhar se o prometheus.yml não existir
+      ansible.builtin.fail:
+        msg: "Arquivo prometheus.yml não encontrado!"
+      when: not prometheus_conf.stat.exists
+
+    - name: Garantir que a stack anterior seja destruída
+      ansible.builtin.command:
+        cmd: docker compose down --remove-orphans
+        chdir: "{{ project_dir }}"
+      ignore_errors: true
+      changed_when: false
+
+    #Build da imagem e Criação/Execução dos Containers
+    - name: Build da imagem Go, criação da rede e execução da stack inteira via Compose
+      ansible.builtin.command:
+        cmd: docker compose up -d --build --force-recreate
+        chdir: "{{ project_dir }}"
+      changed_when: true
+
+    - name: Fazer requisição HTTP para validar o serviço
+      ansible.builtin.uri:
+        url: "http://172.17.0.1/projeto-korp"
+        method: GET
+        return_content: yes
+        status_code: 200
+      register: api_response
+
+    - name: Exibir a resposta do serviço desenvolvida no console
+      ansible.builtin.debug:
+        msg:
+          - "======================================================="
+          - " VALIDAÇÃO HTTP REALIZADA COM SUCESSO!"
+          - " Resposta da API: {{ api_response.content }}"
+          - "======================================================="
