@@ -1,11 +1,14 @@
 # http-server-projeto-korp
 
+Este repositório contém a automação de implantação e monitoramento para a aplicação **Projeto Korp**, construída em Go e orquestrada via **Docker Compose** e **Ansible**.
+
+## Parte 1
 Para execução local:
 ```
 go run httpserver.go
 ```
 
-Comando para facilitar minha vida:
+Comando para build e execução rápida:
 ```
 sudo docker build -t http-server-projeto-korp:latest . && sudo docker compose up -d
 ```
@@ -25,8 +28,10 @@ sudo docker run -it --rm \
   -v $(pwd):/app \
   -w /app \
   fedora:latest bash
-  
-sudo docker exec -it fedora-test bash
+
 dnf install -y ansible git
 ansible-playbook -i ansible/inventory ansible/playbook.yml
 ```
+
+# Grafana
+![](imagens/Screenshot_20260915_190246.png)

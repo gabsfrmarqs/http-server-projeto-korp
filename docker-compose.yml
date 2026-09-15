@@ -12,9 +12,9 @@ services:
     image: nginx:alpine
     restart: unless-stopped
     ports:
-      - "80:80" #mapeia do host
+      - "80:80"
     volumes:
-      - ./nginx/http-server-projeto-korp.conf:/etc/nginx/nginx.conf:ro
+      - ${HOST_PWD:-.}/nginx/http-server-projeto-korp.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - projeto-korp
     networks:
@@ -28,7 +28,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./ansible/files/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ${HOST_PWD:-.}/ansible/files/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -44,8 +44,8 @@ services:
     container_name: grafana
     restart: unless-stopped
     volumes:
-    - ./ansible/files/grafana/dashboards/:/etc/grafana/provisioning/dashboards:ro
-    - ./ansible/files/grafana/datasources/:/etc/grafana/provisioning/datasources:ro
+      - ${HOST_PWD:-.}/ansible/files/grafana/dashboards/:/etc/grafana/provisioning/dashboards:ro
+      - ${HOST_PWD:-.}/ansible/files/grafana/datasources/:/etc/grafana/provisioning/datasources:ro
     ports:
       - "3000:3000"
     networks:

@@ -28,12 +28,6 @@
           - python
         state: present
 
-    #- name: Garantir que o serviço do Docker está ativo e habilitado no boot
-    #  ansible.builtin.service:
-    #    name: docker
-    #    state: started
-    #    enabled: yes
-
     - name: Verificar se o firewalld está ativo
       ansible.builtin.command: systemctl is-active firewalld
       register: firewalld_status
@@ -104,7 +98,21 @@
       ignore_errors: true
       changed_when: false
 
-    #Build da imagem e Criação/Execução dos Containers
+    - name: Descobrir o caminho real do projeto na máquina Host
+      ansible.builtin.shell: >
+        {% raw %}
+        docker inspect $(cat /etc/hostname) --format '{{range .Mounts}}{{if eq .Destination "/app"}}{{.Source}}{{end}}{{end}}'
+        {% endraw %}
+      register: host_project_dir
+      changed_when: false
+
+    - name: Criar arquivo .env para o Docker Compose
+      ansible.builtin.copy:
+        dest: "{{ project_dir }}/.env"
+        content: |
+          HOST_PWD={{ host_project_dir.stdout }}
+        mode: '0644'
+
     - name: Build da imagem Go, criação da rede e execução da stack inteira via Compose
       ansible.builtin.command:
         cmd: docker compose up -d --build --force-recreate
